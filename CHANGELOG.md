@@ -42,6 +42,7 @@ Only collects data that matches regex.
 - Removed prompting per log file for the '--select' option. It's not necassary
 to have the user prompt to check each log file.
 - Should be sligtly faster in processing logs than before.
+- Only support python3.x
 
 --Bug Fixes--
 

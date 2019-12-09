@@ -6,14 +6,13 @@
 
 from datetime import datetime, timedelta
 import json
-import urllib2
+import urllib.request
+import gzip
 import socket
 import sys
 import re
 import time
 import os
-import gzip
-from sys import stdout
 from time import sleep
 from optparse import OptionParser
 from collections import defaultdict
@@ -32,11 +31,11 @@ class Col(object):
 
 
 class Title(object):
-    line = u'●▬▬▬▬▬▬▬▬▬▬▬▬▬▬๑۩۩๑▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬●'
-    traffic_analyser = u'▂▃▅▇█▓▒░۩۞۩ TRAFFIC ANALYSER ۩۞۩░▒▓█▇▅▃▂'
-    log_info = u'▂▃▅▇█▓▒░۩۞۩ LOGS INFO ۩۞۩░▒▓█▇▅▃▂'
-    log_result = u'▂▃▅▇█▓▒░۩۞۩ LOG RESULTS ۩۞۩░▒▓█▇▅▃▂'
-    general_info = u'▂▃▅▇█▓▒░۩۞۩ GENERAL INFO ۩۞۩░▒▓█▇▅▃▂'
+    line = '●▬▬▬▬▬▬▬▬▬▬▬▬▬▬๑۩۩๑▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬●'
+    traffic_analyser = '▂▃▅▇█▓▒░۩۞۩ TRAFFIC ANALYSER ۩۞۩░▒▓█▇▅▃▂'
+    log_info = '▂▃▅▇█▓▒░۩۞۩ LOGS INFO ۩۞۩░▒▓█▇▅▃▂'
+    log_result = '▂▃▅▇█▓▒░۩۞۩ LOG RESULTS ۩۞۩░▒▓█▇▅▃▂'
+    general_info = '▂▃▅▇█▓▒░۩۞۩ GENERAL INFO ۩۞۩░▒▓█▇▅▃▂'
 
 
 class CmdArgs(object):
@@ -49,7 +48,7 @@ class CmdArgs(object):
         Validate command line options/arguments
         """
         if options.help:
-            print help_text
+            sys.stdout.write(help_text)
             sys.exit()
         # set default options
         if len(sys.argv) < 2:
@@ -116,7 +115,7 @@ class CmdArgs(object):
                     args.remove(log_file)
                 elif not os.path.exists(log_file):
                     parser.error("Could not find this log file; {0}. Make sure"
-                                 " you've got the correct file name".format(
+                                 " yo've got the correct file name".format(
                                      log_file))
         elif options.dir:
             sys.exit("--dir options has been removed. Use {0} instead.".format(
@@ -202,7 +201,7 @@ class CmdArgs(object):
         log_list = []
         search_list = []
 
-        for option, arg in vars(options).iteritems():
+        for option, arg in iter(dict.items(vars(options))):
             if arg not in [None, False]:
                 if option in ['day', 'hour', 'min', 'date']:
                     time_list.append(option)
@@ -468,7 +467,7 @@ class GetData(object):
         self.data['logs_skipped'] = len(logs) - len(self.data['logs'])
 
         if self.data['log_count'] == 0:
-            print ("There are no log files to check. Exiting script..."
+            print("There are no log files to check. Exiting script..."
                    "\n\n Note: if a log file is empty or its 'last modified "
                    "time' is not within the time-range specified, then the "
                    "script will skip it.")
@@ -476,25 +475,20 @@ class GetData(object):
 
         # List logs opened by apache/nginx and let the user choose
         if opts.select and 'cycle_all' not in self.cmd_args:
-            print
+            print()
             # prompt user to choose log files to check
-            for n, (log_file, size) in enumerate(
-                    self.data['logs'].iteritems(), 1):
-                print '{0}. {1} [{2}]'.format(n,
-                                              Col.YELLOW + log_file +
-                                              Col.ENDC, size)
-            print
+            for n, (log_file, size) in enumerate(iter(self.data['logs']), 1):
+                print('{0}. {1} [{2}]'.format(n, Col.YELLOW + log_file + Col.ENDC, size))
+            print()
+
             log_count = len(self.data['logs'])
             while True:
                 try:
                     sys.stdin = open('/dev/tty')
-                    user_input = raw_input(
-                        "Which logs would you like to analyse? "
-                        "(eg. 1 3 4 or all) ")
+                    user_input = input("Which logs would you like to analyse? (eg. 1 3 4 or all) ")
                     input_list = user_input.split()
                     if not input_list:
-                        print (
-                            "You need to make sure your input is either"
+                        print("You need to make sure your input is either"
                             " all(selects all logs) or are digits with "
                             "spacing between them (ie. 4 3 2 1)")
                     else:
@@ -506,10 +500,9 @@ class GetData(object):
                             if (max(input_list) >
                                     log_count or min(input_list) <
                                     1):
-                                print ("Error: The logs range from 1 to "
+                                print("Error: The logs range from 1 to "
                                        "{0}, so where did you get {1} "
-                                       "from...?".format(log_count,
-                                                         max(input_list)))
+                                       "from...?".format(log_count, max(input_list)))
                             else:
                                 # remove logs the user doesn't want
                                 for n, log_file in enumerate(
@@ -522,7 +515,7 @@ class GetData(object):
                                 self.data['log_count'] = len(self.data['logs'])
                                 break
                 except ValueError:
-                    print ("You need to make sure your input is either"
+                    print("You need to make sure your input is either"
                            " all(selects all logs) or are digits with "
                            "spacing between them (ie. 4 3 2 1)")
 
@@ -599,7 +592,7 @@ class GetData(object):
         socket_no = self.socket_number()
         httpd_type = None
         if socket_no:
-            for httpd, port in httpd_list.iteritems():
+            for httpd, port in iter(dict.items(httpd_list)):
                 pid = port['ports'][0]
                 try:
                     for filename in os.listdir('/proc/{0}/fd'.format(pid)):
@@ -608,7 +601,7 @@ class GetData(object):
                         # check if socket number matches open sockets for
                         # httpd pid
                         if socket_no in filename:
-                            # print filename
+                            # print(filename
                             httpd_type = httpd
                             break
                 except IOError:
@@ -616,7 +609,7 @@ class GetData(object):
 
         # Quit if cannot detect what is running on port 80
         if not httpd_type:
-            print ("{0}\nERROR: Could not detect whether apache or nginx is "
+            print("{0}\nERROR: Could not detect whether apache or nginx is "
                    "listening on port 80".format(self.cmd_args['help_text']))
             sys.exit()
 
@@ -661,8 +654,7 @@ class GetData(object):
                                        "%d/%b/%Y:%H:%M:%S")
         end_time = datetime.strptime(end_time, "%d/%b/%Y:%H:%M:%S")
 
-        self.data.setdefault('time_period', []).extend(
-            [start_time, end_time])
+        self.data.setdefault('time_period', []).extend([start_time, end_time])
 
         return start_time, end_time
 
@@ -939,13 +931,13 @@ class AnalyseLogs(LogDataStructure):
             # Go through each log file and grab required data
             for number, logfile in enumerate(logs, 1):
                 if not opts.select and 'cycle_all' not in self.cmd_args:
-                    # dynamic print update status
-                    stdout.write(
+                    # dynamic print(update status
+                    sys.stdout.write(
                         "\r\x1b[K" + "Checking log file {0}/{1}... "
                                      "{2} ({3})".format(
                                          number, log_count, logfile,
                                          self.data['logs'][logfile]))
-                    stdout.flush()
+                    sys.stdout.flush()
                     sleep(1)
 
                 gzip_file_check = (True if logfile.endswith('.gz') else False)
@@ -1084,35 +1076,35 @@ class PrintData(object):
         time_range = (self.display_time_range(start_time, end_time,
                                               self.cmd_args['opts'],
                                               short_version=True))
-        print "Time Range: {0}".format(time_range)
-        print "Earliest Record Found: {0}".format(earliest_record)
-        print "Last Record Found: {0}".format(last_record)
+        print("Time Range: {0}".format(time_range))
+        print("Earliest Record Found: {0}".format(earliest_record))
+        print("Last Record Found: {0}".format(last_record))
 
     def print_log_count(self, log_num=''):
-        print "✄ Log files ordered by hit count: \n"
+        print("✄ Log files ordered by hit count: \n")
 
         logs = sorted(self.data['hit_count'].items(), key=itemgetter(1),
                       reverse=True)
         for n, (log, hit_count) in enumerate(logs, 1):
             size = self.data['logs'][log]
-            # print log file and hit count
-            print '{0}.{1} [{2}] {3} ({4})'.format(n, ('' if log_num == ''
+            # print(log file and hit count
+            print('{0}.{1} [{2}] {3} ({4})'.format(n, ('' if log_num == ''
                                                        else Col.BLUE + ' (' +
                                                        str(log_num[log]) +
                                                        ')' + Col.ENDC),
                                                    hit_count,
                                                    Col.YELLOW + log +
-                                                   Col.ENDC, str(size))
+                                                   Col.ENDC, str(size)))
 
     def print_logs_info(self):
-        print
+        print()
         logs_skipped = ('' if self.data['logs_skipped'] ==
                         0 else '\n✄ {0} logs were skipped due to either'
                         ' being empty or the logs last modified time is'
                         ' older than requested start time'.format(
                         self.data['logs_skipped']))
 
-        print ('✄ A total of {0} logs were analysed{1}. '.format(
+        print('✄ A total of {0} logs were analysed{1}. '.format(
             Col.YELLOW + str(self.data['log_count']) + Col.ENDC, logs_skipped))
 
         if not self.cmd_args[
@@ -1126,14 +1118,14 @@ class PrintData(object):
                                              strftime('%d/%b/%Y %H:%M:%S')))
 
         if self.cmd_args['opts'].select or 'cycle_all' in self.cmd_args:
-            print ('✄ Log file results below are listed unordered. In order '
+            print('✄ Log file results below are listed unordered. In order '
                    'to save memory consumption, the hit count per '
                    'log file will be shown at the very end.')
         else:
             self.print_log_count()
 
     def print_data(self, logs_data):
-        """ Print the results of data gathered from logs into console
+        """ print(the results of data gathered from logs into console
         """
         opts = self.cmd_args['opts']
         ip_req_logs, overall_date_logs = logs_data
@@ -1143,27 +1135,27 @@ class PrintData(object):
 
         if not self.cmd_args[
                 'opts'].select and 'cycle_all' not in self.cmd_args:
+            print()
+            print('●▬▬▬▬▬▬▬▬▬▬▬▬▬▬๑۩۩๑▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬●')
             print
-            print u'●▬▬▬▬▬▬▬▬▬▬▬▬▬▬๑۩۩๑▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬●'
-            print
-            print ("✄ Results below are a combined collection of the log files"
+            print("✄ Results below are a combined collection of the log files"
                    " listed above. For per-log analysis consider using"
                    " '--select' or '--log cycle /path/to/log(s)' options.")
 
-        print
-        print
-        # print time range details
+        print()
+        print()
+        # print(time range details
         self.time_range(start_time, end_time)
 
-        # print request or ip data depending on user input
+        # print(request or ip data depending on user input
         if opts.ip or opts.request or opts.compact:
             # total_hit
             total_hits = sum(y['count'] for y in overall_date_logs.values())
 
-            print '\nTOTAL HIT COUNT: [{0}]'.format(Col.LIGHTRED +
+            print('\nTOTAL HIT COUNT: [{0}]'.format(Col.LIGHTRED +
                                                     str(total_hits) +
                                                     Col.ENDC),
-            self.print_date_logs(overall_date_logs, start_time, end_time)
+            self.print_date_logs(overall_date_logs, start_time, end_time))
 
         if opts.request or opts.rmatch:
             self.print_request(ip_req_logs, start_time, end_time,
@@ -1175,11 +1167,11 @@ class PrintData(object):
             self.print_compact(ip_req_logs, start_time, end_time,
                                ip_no, request_no, opts)
 
-        print
+        print()
 
     def print_format(self, date_logs):
         """ Get the max string length for both hour and 10 minute interval.
-        This is later used to format and neatly print the output
+        This is later used to format and neatly print(the output
         """
         ten_min_len = set()
         hour_len = set()
@@ -1204,7 +1196,7 @@ class PrintData(object):
         return ten_min_len, hour_len
 
     def print_10min(self, hour_logs, ten_min_len):
-        """ print 10 minute count """
+        """ print(10 minute count """
 
         # sort by 10 min interval
         hour_logs = sorted(hour_logs.items())
@@ -1224,23 +1216,23 @@ class PrintData(object):
 
         for n, (ten_min_key, ten_min_count_value) in enumerate(hour_logs, 1):
             pipe_format = ('' if n == log_len else '|')
-            # if there are no hits, then print an empty space
+            # if there are no hits, then print(an empty space
             if ten_min_key == 'None':
                 space_format = (' ' * 7 + ten_min_width + pipe_format if n == 1
                                 else ' ' * 8 + ten_min_width + pipe_format)
-                print space_format,
+                print(space_format)
                 continue
 
             from_min_time = (ten_min_key if ten_min_key is '0'
                              else ten_min_key + '0')
             to_min_time = str(int(ten_min_key) + 1) + '0'
-            print '{0}-{1} {2:{3}s} {4}'.format(
+            print('{0}-{1} {2:{3}s} {4}'.format(
                 Col.CYAN + from_min_time, to_min_time + Col.ENDC,
                 '[' + str(ten_min_count_value) + ']',
-                count_width, pipe_format),
+                count_width, pipe_format))
 
     def print_hour(self, print_hour_variables):
-        """ print hour count  """
+        """ print(hour count  """
 
         (hour_sort, date, start_time_hour, end_time_hour,
          start_time_minute, end_time_minute, start_time_date, end_time_date,
@@ -1262,10 +1254,10 @@ class PrintData(object):
                                    '00' else '{0}:{1}-{2}:00'
                                    .format(hour_key, start_time_minute,
                                            int(hour_key) + 1))
-                print '{0:{1}s}{2:^{3}s}'.format(
+                print('{0:{1}s}{2:^{3}s}'.format(
                     Col.GREEN + hour_key_format + Col.ENDC,
                     hour_width,
-                    '[' + hour_count + ']', count_width),
+                    '[' + hour_count + ']', count_width))
             # Last hour of the last date
             elif hour_key == end_time_hour and date == end_time_date and not (
                     start_time_date == end_time_date and
@@ -1273,10 +1265,10 @@ class PrintData(object):
                 hour_key_format = (hour_key + ':00' if end_time_minute == '00'
                                    else '{0}:00-{1}:{2}'.format(
                                        hour_key, hour_key, end_time_minute))
-                print '{0:{1}s}{2:^{3}s}'.format(
+                print('{0:{1}s}{2:^{3}s}'.format(
                     Col.GREEN + hour_key_format + Col.ENDC,
                     hour_width,
-                    '[' + hour_count + ']', count_width),
+                    '[' + hour_count + ']', count_width))
             # first/last hour of the same date
             elif (start_time_date == end_time_date and
                   start_time_hour == end_time_hour):
@@ -1285,23 +1277,23 @@ class PrintData(object):
                                    else '{0}:{1}-{2}:{3}'.format(
                                        hour_key, start_time_minute,
                                        hour_key, end_time_minute))
-                print '{0:{1}s}{2:^{3}s}'.format(
+                print('{0:{1}s}{2:^{3}s}'.format(
                     Col.GREEN + hour_key_format + Col.ENDC,
                     hour_width,
-                    '[' + hour_count + ']', count_width),
+                    '[' + hour_count + ']', count_width))
             # all other hours
             else:
                 hour_key_format = hour_key + ':00'
-                print '{0:{1}s}{2:^{3}s}'.format(
+                print('{0:{1}s}{2:^{3}s}'.format(
                     Col.GREEN + hour_key_format + Col.ENDC,
                     hour_width,
-                    '[' + hour_count + ']', count_width),
+                    '[' + hour_count + ']', count_width))
 
             if ten_min_enable:
-                print '|',
+                print('|')
                 self.print_10min(hour_count_value['ten_min'], ten_min_len),
 
-            print '\n',
+            print('\n')
 
     def print_date_logs(self, date_logs, start_time, end_time):
         # sorts by date
@@ -1334,46 +1326,46 @@ class PrintData(object):
             # The if/else statements below are to ensure accurate data is
             # printed to console if users date range is multiple days
             if start_time_date != end_time_date:
-                # print date information
+                # print(date information
                 # first date
                 if date_key == start_time_date:
-                    print '\n\n', '{0} ({1}-00:00) [{2}]'.format(
+                    print('\n\n{0} ({1}-00:00) [{2}]\n\n'.format(
                         Col.CYAN +
                         start_time.strftime('%d/%b/%Y') + Col.ENDC,
                         start_time.strftime('%H:%M'),
-                        date_count), '\n\n',
-                    # print hour information per date
+                        date_count))
+                    # print(hour information per date
                     self.print_hour(print_hour_variables)
                 # last date
                 elif date_key == end_time_date:
-                    print '\n\n', '{0} (00:00-{1}) [{2}]'.format(
+                    print('\n\n{0} (00:00-{1}) [{2}]\n\n'.format(
                         Col.CYAN +
                         end_time.strftime('%d/%b/%Y') +
                         Col.ENDC, end_time.strftime('%H:%M'),
-                        date_count), '\n\n',
+                        date_count))
                     self.print_hour(print_hour_variables)
                 # Any date that is not the first or the last
                 else:
-                    print '\n\n', '{0} [{1}]'.format(
+                    print('\n\n{0} [{1}]\n\n'.format(
                         Col.CYAN +
                         datetime.strftime(
                             date_key, '%d/%b/%Y') + Col.ENDC,
-                        date_count), '\n\n',
+                        date_count))
                     self.print_hour(print_hour_variables)
             # If the start time date and the end time date are both
             # the same day
             else:
-                print '\n\n', '{0} ({1}-{2}) [{3}]'.format(
+                print('\n\n{0} ({1}-{2}) [{3}]\n\n'.format(
                     Col.CYAN +
                     start_time.strftime('%d/%b/%Y') + Col.ENDC,
                     start_time.strftime('%H:%M'),
                     end_time.strftime('%H:%M'),
-                    date_count), '\n\n',
+                    date_count))
                 self.print_hour(print_hour_variables)
 
     def print_compact(self, compact_logs, start_time, end_time, ip_no,
                       request_no, opts):
-        """ print compact version of script output """
+        """ print(compact version of script output """
 
         ip_logs = compact_logs['ip']
         request_logs = compact_logs['request']
@@ -1383,8 +1375,8 @@ class PrintData(object):
         request_count = len(request_logs) - request_no
         request_total = request_count if request_count > 0 else 0
 
-        # print top ip's
-        print
+        # print(top ip's
+        print()
         self.display_time_range(start_time, end_time, opts, ip_no,
                                 "ip's")
 
@@ -1396,29 +1388,29 @@ class PrintData(object):
             geo_information = ('' if opts.nogeo else "| [Country: {0} ({1})] "
                                "[ISP: {2}] [Hostname: {3}]".format(
                                    *self.ip_api(ip)))
-            # print ip/count
-            print '\n', '{0}. [{1}] {2} {3}'.format(number, ip_count,
+            # print(ip/count
+            print('\n', '{0}. [{1}] {2} {3}'.format(number, ip_count,
                                                     Col.PURPLE + ip + Col.ENDC,
-                                                    geo_information),
-        print '\n... and {0} more unique ip\'s'.format(
-            Col.LIGHTRED + str(ip_total) + Col.ENDC),
-        # print top requests
-        print
-        print
+                                                    geo_information))
+        print('\n... and {0} more unique ip\'s'.format(
+            Col.LIGHTRED + str(ip_total) + Col.ENDC))
+        # print(top requests
+        print()
+        print()
         self.display_time_range(start_time, end_time, opts, request_no,
                                 "request(s)")
         for number, (request, request_count) in enumerate(
                 request_logs.most_common()[:request_no], 1):
-            print '\n', '{0}. [{1}] {2}'.format(
-                number, request_count, Col.PURPLE + request + Col.ENDC),
-        print '\n... and {0} more unique requests'.format(
-            Col.LIGHTRED + str(request_total) + Col.ENDC),
-        print
+            print('\n', '{0}. [{1}] {2}'.format(
+                number, request_count, Col.PURPLE + request + Col.ENDC))
+        print('\n... and {0} more unique requests'.format(
+            Col.LIGHTRED + str(request_total) + Col.ENDC))
+        print()
 
     def print_ip(self, ip_logs, start_time, end_time, ip_no, request_no, opts):
-        """ print all ip related data """
+        """ print(all ip related data """
 
-        print
+        print()
         self.display_time_range(start_time, end_time, opts, ip_no,
                                 "ip's")
         # sort per IP with highest hits
@@ -1437,24 +1429,24 @@ class PrintData(object):
                 '' if opts.nogeo else "| [Country: {0} ({1})] [ISP: {2}] "
                                       "[Hostname: {3}]".format(*self.ip_api(
                                                                ip)))
-            # print ip/count
-            print '\n', '{0}. [{1}] {2} {3}'.format(number, ip_values['count'],
+            # print(ip/count
+            print('\n{0}. [{1}] {2} {3}'.format(number, ip_values['count'],
                                                     Col.PURPLE + ip + Col.ENDC,
-                                                    geo_information)
-            # print requests per ip
-            print ''.join(
+                                                    geo_information))
+            # print(requests per ip
+            print(''.join(
                 ['[{1:d}] {0}\n'.format(*kv) for kv in
-                 ip_values['get_post'].most_common()[:request_no]]),
-            print '... and {0} more unique requests'.format(
-                Col.LIGHTRED + str(request_total) + Col.ENDC),
-            # print date related hits per ip
+                 ip_values['get_post'].most_common()[:request_no]])),
+            print('... and {0} more unique requests'.format(
+                Col.LIGHTRED + str(request_total) + Col.ENDC))
+            # print(date related hits per ip
             self.print_date_logs(ip_values['date'], start_time, end_time)
 
     def print_request(self, request_logs, start_time, end_time, ip_no,
                       request_no, opts):
-        """ print all requests related data """
+        """ print(all requests related data """
 
-        print
+        print()
         self.display_time_range(start_time, end_time, opts, request_no,
                                 'request(s)')
 
@@ -1469,13 +1461,13 @@ class PrintData(object):
             # count how many unique ip's are left that aren't being shown
             ip_count = len(request_values['ip']) - ip_no
             ip_total = ip_count if ip_count > 0 else 0
-            print '\n---------------------------------'
-            # print requests and count
-            print '\n', '{0}. [{1}] {2}'.format(number,
+            print('\n---------------------------------')
+            # print(requests and count
+            print('\n{0}. [{1}] {2}'.format(number,
                                                 request_values['count'],
                                                 Col.PURPLE + request +
-                                                Col.ENDC)
-            # print total ip per requests
+                                                Col.ENDC))
+            # print(total ip per requests
             for ip, ip_values in request_values['ip'].most_common()[
                     :ip_no]:
                 # check if --nogeo is enabled
@@ -1483,12 +1475,12 @@ class PrintData(object):
                     '' if opts.nogeo else "| [Country: {0} ({1})] "
                                           "[ISP: {2}] [Hostname: {3}]".format(
                                               *self.ip_api(ip)))
-                # print ip and count
-                print '[{0}] {1} {2}'.format(ip_values, ip,
-                                             geo_information)
-            print '... and {0} more unique ip\'s'.format(
-                Col.LIGHTRED + str(ip_total) + Col.ENDC),
-            # print date related hits per request
+                # print(ip and count
+                print('[{0}] {1} {2}'.format(ip_values, ip,
+                                             geo_information))
+            print('... and {0} more unique ip\'s'.format(
+                Col.LIGHTRED + str(ip_total) + Col.ENDC))
+            # print(date related hits per request
             self.print_date_logs(request_values['date'], start_time, end_time)
 
     def display_time_range(self, start_time, end_time, opts, arg_no=None,
@@ -1518,12 +1510,12 @@ class PrintData(object):
             return Col.LIGHTRED + time_range + Col.ENDC + arg_time
 
         if opts.ip or opts.request or opts.compact:
-            print ("=== Top {0} {1} between {2}{3} ===".format(
+            print("=== Top {0} {1} between {2}{3} ===".format(
                 arg_no, arg_type, Col.LIGHTRED + str(time_range) + Col.ENDC,
                 arg_time))
         else:  # ipmatch or rmatch
             ip_or_req = ', '.join(x for x in self.cmd_args['args'])
-            print ("=== Matching {0} ({1}) between {2}{3} ===".format(
+            print("=== Matching {0} ({1}) between {2}{3} ===".format(
                 arg_type, ip_or_req, Col.LIGHTRED + str(time_range) + Col.ENDC,
                 arg_time))
 
@@ -1531,14 +1523,14 @@ class PrintData(object):
         """ Get IP information from API """
 
         url = 'http://ip-api.com/json/{0}'.format(ip)
-        result = urllib2.urlopen(url, timeout=15)
-        ip_data = json.loads(result.read())
+        result = urllib.request.urlopen(url, timeout=15)
+        ip_data = json.loads(result.read().decode("utf-8"))
 
-        # u'message' occurs if ip information cannot be found (ie. private ip)
-        if u'message' in ip_data:
-            ip_country = ip_data[u'message']
-            ip_isp = ip_data[u'message']
-            ip_city = ip_data[u'message']
+        # 'message' occurs if ip information cannot be found (ie. private ip)
+        if 'message' in ip_data:
+            ip_country = ip_data['message']
+            ip_isp = ip_data['message']
+            ip_city = ip_data['message']
         else:
             try:
                 ip_country = ip_data['country']
@@ -1563,21 +1555,21 @@ class PrintData(object):
             'utf-8'), ip_isp.encode('utf-8'), hostname
 
     def general_info(self, opts):
-        print
-        print Title.general_info
-        print
+        print()
+        print(Title.general_info)
+        print()
 
         httpd_log_dir = (" ({0})".format(self.data['httpd_extra_info']) if
                          'httpd_extra_info' in self.data else "")
-        print "✄ Webserver: {0}{1}".format(
-            Col.GREEN + self.data["httpd_type"] + Col.ENDC, httpd_log_dir)
+        print("✄ Webserver: {0}{1}".format(
+            Col.GREEN + self.data["httpd_type"] + Col.ENDC, httpd_log_dir))
 
         if 'ten_min_enable' not in self.data:
-            print ("✄ Ten minute interval hit count has been disabled (this "
+            print("✄ Ten minute interval hit count has been disabled (this "
                    "occurs when time range is 6 hours or longer). You can "
                    "manually enable/disable it with '--ten on/off' option")
         if opts.filter:
-            print ("✄ You have used the --filter {0} command, note that any "
+            print("✄ You have used the --filter {0} command, note that any "
                    "hit count numbers below are strictly based on the filter "
                    "matches".format(opts.filter))
         if 'geo_limit' in self.data:
@@ -1590,7 +1582,7 @@ class PrintData(object):
                   "options have been "
                   "assumed '{0}'".format(self.cmd_args['default_arg']))
 
-        print
+        print()
 
     def print_select(self, print_stuff):
         log_len = len(self.data['logs'])
@@ -1598,38 +1590,38 @@ class PrintData(object):
         get_logs = self.data['logs'].keys()
         log_num = dict(zip(get_logs, num_list))
 
-        print
-        print Title.log_info
+        print()
+        print(Title.log_info)
         print_stuff.print_logs_info()
-        print
-        print
+        print()
+        print()
 
-        print Title.log_result
+        print(Title.log_result)
 
-        for n, (log_file, size) in enumerate(self.data['logs'].iteritems(), 1):
+        for n, (log_file, size) in enumerate(iter(dict.items(self.data['logs'])), 1):
             log = [log_file]
             ip_req_count, date_count = (
                 AnalyseLogs(self.cmd_args, self.data).get_data_from_logs(log))
             logs_data = (ip_req_count, date_count)
 
-            print Title.line
-            print
+            print(Title.line)
+            print()
 
-            print ("{0}. Checking log file {1}/{2}... {3} ({4})".format(
+            print(("{0}. Checking log file {1}/{2}... {3} ({4})".format(
                 Col.BLUE + '(' + str(log_num[log_file]) + ')' + Col.ENDC,
                 n, self.data['log_count'], Col.YELLOW + log_file +
-                Col.ENDC, size)),
-            print
+                Col.ENDC, size)))
+            print()
 
             if None in self.data['time_period'] or not ip_req_count:
-                print
-                print "TOTAL HIT COUNT: [{0}]".format(
-                    Col.LIGHTRED + '0' + Col.ENDC)
-                print ("\nThere was no matching records found between "
+                print()
+                print("TOTAL HIT COUNT: [{0}]".format(
+                    Col.LIGHTRED + '0' + Col.ENDC))
+                print(("\nThere was no matching records found between "
                        "{0} - {1}.\n".format(self.data['time_period'][0]
                                              .strftime('%d/%b/%Y %H:%M:%S'),
                                              self.data['time_period'][1]
-                                             .strftime('%d/%b/%Y %H:%M:%S')))
+                                             .strftime('%d/%b/%Y %H:%M:%S'))))
             else:
                 print_stuff.print_data(logs_data)
                 ip_req_count.clear()
@@ -1639,27 +1631,27 @@ class PrintData(object):
             # reset first/last recorde date
             del self.data['time_period'][-2:]
 
-        # print log count
-        print
-        print Title.line
-        print
+        # print(log count
+        print()
+        print(Title.line)
+        print()
         print_stuff.print_log_count(log_num)
-        print
+        print()
 
 
 def print_main_header():
-    print
-    print Title.traffic_analyser
-    print
-    print 'Version: {0}'.format(Col.GREEN + 'v2.1' + Col.ENDC)
-    print 'Last Updated: {0}'.format(Col.GREEN + '19/Feb/2017' +
-                                     Col.ENDC)
-    print 'See changelog here: {0}'.format(
+    print()
+    print(Title.traffic_analyser)
+    print()
+    print('Version: {0}'.format(Col.GREEN + 'v2.1' + Col.ENDC))
+    print('Last Updated: {0}'.format(Col.GREEN + '19/Feb/2017' +
+                                     Col.ENDC))
+    print('See changelog here: {0}'.format(
         Col.GREEN + 'https://github.com/tahz7/traffic_analyser/'
-                    'blob/master/CHANGELOG.md' + Col.ENDC)
-    print 'Report bugs/issues to: {0}'.format(
-        Col.GREEN + 'https://github.com/tahz7/traffic_analyser' + Col.ENDC)
-    print
+                    'blob/master/CHANGELOG.md' + Col.ENDC))
+    print('Report bugs/issues to: {0}'.format(
+        Col.GREEN + 'https://github.com/tahz7/traffic_analyser' + Col.ENDC))
+    print()
 
 
 class Counter(dict):
@@ -1698,8 +1690,8 @@ class Counter(dict):
 
         '''
         if n is None:
-            return sorted(self.iteritems(), key=itemgetter(1), reverse=True)
-        return nlargest(n, self.iteritems(), key=itemgetter(1))
+            return sorted(iter(dict.items(self)), key=itemgetter(1), reverse=True)
+        return nlargest(n, iter(dict.items(self)), key=itemgetter(1))
 
     def elements(self):
         '''Iterator over elements repeating each as many times as its count.
@@ -1712,7 +1704,7 @@ class Counter(dict):
         elements() will ignore it.
 
         '''
-        for elem, count in self.iteritems():
+        for elem, count in iter(dict.items(self)):
             for _ in repeat(None, count):
                 yield elem
 
@@ -1737,10 +1729,10 @@ class Counter(dict):
 
         '''
         if iterable is not None:
-            if hasattr(iterable, 'iteritems'):
+            if hasattr(iterable, '__iter__'):
                 if self:
                     self_get = self.get
-                    for elem, count in iterable.iteritems():
+                    for elem, count in iter(dict.items(iterable)):
                         self[elem] = self_get(elem, 0) + count
                 else:
                     # fast path when counter is empty
@@ -1850,7 +1842,7 @@ class Counter(dict):
 
 
 def main():
-    # print headers
+    # print(headers
     print_main_header()
     # get arguments
     cmd_args = CmdArgs().main_args()
@@ -1858,22 +1850,22 @@ def main():
     data = GetData(cmd_args).control_flow()
     # create PrintData instance
     print_stuff = PrintData(cmd_args, data)
-    # print general info
+    # print(general info
     print_stuff.general_info(cmd_args['opts'])
 
     if cmd_args['opts'].select or 'cycle_all' in cmd_args:
         print_stuff.print_select(print_stuff)
     else:
-        print
-        print Title.log_info
-        print
+        print()
+        print(Title.log_info)
+        print()
         # grab log data
         logs_data = AnalyseLogs(cmd_args, data).grab_log_data()
-        print
+        print()
         print_stuff.print_logs_info()
-        print
-        print
-        print Title.log_result
+        print()
+        print()
+        print(Title.log_result)
         print_stuff.print_data(logs_data)
 
     sys.stdout.flush()
